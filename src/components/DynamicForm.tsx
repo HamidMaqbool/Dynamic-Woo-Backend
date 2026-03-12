@@ -1,0 +1,407 @@
+
+import React, { useState, useEffect, useCallback } from 'react';
+import { useCRMStore, Product } from '../store/useStore';
+import { CRM_SCHEMA } from '../constants/schema';
+import { motion, AnimatePresence } from 'motion/react';
+import { cn } from '../utils/cn';
+import { Icon } from './Icon';
+import { FormSkeleton } from './Skeleton';
+
+// Import individual input components
+import { TextField } from './input-type/TextField';
+import { TextAreaField } from './input-type/TextAreaField';
+import { SelectField } from './input-type/SelectField';
+import { CheckboxField } from './input-type/CheckboxField';
+import { RadioField } from './input-type/RadioField';
+import { ImageField } from './input-type/ImageField';
+import { GalleryField } from './input-type/GalleryField';
+import { ColorField } from './input-type/ColorField';
+import { RepeaterField } from './input-type/RepeaterField';
+import { VariationField } from './input-type/VariationField';
+
+export const DynamicForm: React.FC = () => {
+    const { editingProduct, setView, addProduct, updateProduct, setNotification, notification } = useCRMStore();
+    const formConfig = CRM_SCHEMA.form["auroparts-product"];
+    
+    const [formData, setFormData] = useState<Partial<Product>>({});
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [isLoading, setIsLoading] = useState(false);
+    const [isUploadingSingle, setIsUploadingSingle] = useState(false);
+
+    useEffect(() => {
+        const loadData = async () => {
+            setIsLoading(true);
+            // Simulate AJAX load
+            await new Promise(resolve => setTimeout(resolve, 1200));
+            
+            if (editingProduct) {
+                setFormData(editingProduct);
+            } else {
+                const defaults: any = {};
+                formConfig.forEach(section => {
+                    section.fields.forEach(field => {
+                        if (field.value !== undefined) defaults[field.name] = field.value;
+                        if (field.type === 'repeater' && !defaults[field.name]) {
+                            defaults[field.name] = [];
+                        }
+                    });
+                });
+                setFormData(defaults);
+            }
+            setIsLoading(false);
+        };
+        loadData();
+    }, [editingProduct]);
+
+    const validate = () => {
+        const newErrors: Record<string, string> = {};
+        formConfig.forEach(section => {
+            section.fields.forEach(field => {
+                const val = formData[field.name];
+                if (field.valid === 'required' && (!val || (Array.isArray(val) && val.length === 0))) {
+                    newErrors[field.name] = `${field.title || field.name} is required`;
+                }
+                if (field.type === 'email' && val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
+                    newErrors[field.name] = 'Invalid email format';
+                }
+            });
+        });
+        setErrors(newErrors);
+        return Object.keys(newErrors).length === 0;
+    };
+
+    const handleChange = (name: string, value: any) => {
+        setFormData(prev => ({ ...prev, [name]: value }));
+        if (errors[name]) {
+            setErrors(prev => {
+                const updated = { ...prev };
+                delete updated[name];
+                return updated;
+            });
+        }
+    };
+
+    const handleSingleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+        const file = e.target.files?.[0];
+        if (!file) return;
+
+        setIsUploadingSingle(true);
+        try {
+            // Mock upload
+            await new Promise(resolve => setTimeout(resolve, 1000));
+            const mockUrl = URL.createObjectURL(file);
+            handleChange('image', mockUrl);
+        } finally {
+            setIsUploadingSingle(false);
+        }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!validate()) {
+            setNotification({ message: 'Please fix the errors before submitting', type: 'error' });
+            return;
+        }
+
+        setIsSubmitting(true);
+        console.log('Saving Form Data:', formData);
+        try {
+            // Simulate submission to dummy URL
+            const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+                method: 'POST',
+                body: JSON.stringify(formData),
+                headers: { 'Content-type': 'application/json; charset=UTF-8' },
+            });
+
+            if (!response.ok) throw new Error('Submission failed');
+
+            if (editingProduct) {
+                updateProduct(editingProduct.id, formData);
+            } else {
+                const newProduct: Product = {
+                    ...formData,
+                    id: `PRD-${Math.floor(Math.random() * 10000)}`,
+                    created_at: new Date().toISOString().split('T')[0],
+                    status: (formData.status as any) || 'publish',
+                    image: (formData.image as string) || 'https://picsum.photos/seed/new/100/100',
+                    identifier: `AURO-${Math.floor(Math.random() * 10000)}`,
+                    parent_id: '-',
+                    title: (formData.item_name as string) || 'Untitled Product'
+                } as Product;
+                addProduct(newProduct);
+            }
+
+            setNotification({ message: 'Data submitted successfully to dummy URL!', type: 'success' });
+            setTimeout(() => setView('list'), 1500);
+        } catch (error) {
+            setNotification({ message: 'Error submitting data. Please try again.', type: 'error' });
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
+
+    const renderFieldInternal = useCallback((field: any, value: any, onChange: (val: any) => void) => {
+        const hasError = !!errors[field.name];
+        const readOnly = field.attr?.readOnly === 'true' || field.readOnly === true;
+
+        switch (field.type) {
+            case 'text':
+            case 'email':
+            case 'password':
+            case 'number':
+            case 'tel':
+            case 'url':
+            case 'date':
+            case 'time':
+                return (
+                    <TextField 
+                        type={field.type}
+                        value={value ?? ''}
+                        onChange={onChange}
+                        placeholder={field.placeholder}
+                        readOnly={readOnly}
+                        hasError={hasError}
+                    />
+                );
+            case 'textarea':
+                return (
+                    <TextAreaField 
+                        value={value ?? ''}
+                        onChange={onChange}
+                        placeholder={field.placeholder}
+                        readOnly={readOnly}
+                        hasError={hasError}
+                    />
+                );
+            case 'select':
+            case 'status':
+                return (
+                    <SelectField 
+                        value={value ?? ''}
+                        onChange={onChange}
+                        options={field.options}
+                        hasError={hasError}
+                        readOnly={readOnly}
+                    />
+                );
+            case 'checkbox':
+                return (
+                    <CheckboxField 
+                        value={!!value}
+                        onChange={onChange}
+                        placeholder={field.placeholder}
+                        title={field.title}
+                        readOnly={readOnly}
+                    />
+                );
+            case 'radio':
+                return (
+                    <RadioField 
+                        name={field.name}
+                        value={value ?? ''}
+                        onChange={onChange}
+                        options={field.options}
+                        readOnly={readOnly}
+                    />
+                );
+            case 'image':
+                return (
+                    <ImageField 
+                        value={value ?? ''}
+                        onChange={onChange}
+                        isUploading={isUploadingSingle}
+                        onUpload={handleSingleImageUpload}
+                        readOnly={readOnly}
+                    />
+                );
+            case 'images':
+            case 'gallery':
+                return (
+                    <GalleryField 
+                        value={Array.isArray(value) ? value : []} 
+                        onChange={onChange}
+                        max={field.max || 10}
+                        readOnly={readOnly}
+                    />
+                );
+            case 'color':
+                return (
+                    <ColorField 
+                        value={value ?? ''}
+                        onChange={onChange}
+                        readOnly={readOnly}
+                    />
+                );
+            case 'repeater':
+                return (
+                    <RepeaterField 
+                        value={Array.isArray(value) ? value : []}
+                        onChange={onChange}
+                        fields={field.fields || []}
+                        renderField={renderFieldInternal}
+                        readOnly={readOnly}
+                    />
+                );
+            case 'variation':
+                return (
+                    <VariationField 
+                        value={value}
+                        onChange={onChange}
+                        readOnly={readOnly}
+                        columns={field.columns}
+                    />
+                );
+            default:
+                return <div className="text-xs text-rose-500 font-bold bg-rose-50 p-3 rounded-lg border border-rose-100 italic">Unsupported field type: {field.type}</div>;
+        }
+    }, [errors, isUploadingSingle]);
+
+    const mainSections = formConfig.filter(s => s.type !== 'sidebar');
+    const sidebarSections = formConfig.filter(s => s.type === 'sidebar');
+
+    return (
+        <div className="flex flex-col h-full bg-[#F8F9FA] text-[#1A1A1A] font-sans relative">
+            {/* Notification Toast */}
+            <AnimatePresence>
+                {notification && (
+                    <motion.div 
+                        initial={{ opacity: 0, y: -50 }}
+                        animate={{ opacity: 1, y: 20 }}
+                        exit={{ opacity: 0, y: -50 }}
+                        className={cn(
+                            "fixed top-4 left-1/2 -translate-x-1/2 z-[100] px-6 py-3 rounded-xl shadow-2xl flex items-center gap-3 border",
+                            notification.type === 'success' ? "bg-emerald-500 text-white border-emerald-400" : "bg-rose-500 text-white border-rose-400"
+                        )}
+                    >
+                        {notification.type === 'success' ? <Icon name="check-circle" className="w-5 h-5" /> : <Icon name="alert-circle" className="w-5 h-5" />}
+                        <span className="font-semibold text-sm">{notification.message}</span>
+                        <button onClick={() => setNotification(null)} className="ml-2 hover:opacity-70">
+                            <Icon name="x" className="w-4 h-4" />
+                        </button>
+                    </motion.div>
+                )}
+            </AnimatePresence>
+
+            {/* Header */}
+            <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-4 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+                <div className="flex items-center gap-4">
+                    <button 
+                        onClick={() => setView('list')}
+                        className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600"
+                    >
+                        <Icon name="arrow-left" className="w-5 h-5" />
+                    </button>
+                    <div>
+                        <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
+                            {editingProduct ? 'Edit' : 'Create'} {CRM_SCHEMA.table["auroparts-product"].label.singular}
+                        </h1>
+                        <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-0.5">
+                            {editingProduct ? `ID: ${editingProduct.id}` : 'New Entry'}
+                        </p>
+                    </div>
+                </div>
+                <div className="flex items-center gap-3 w-full sm:w-auto">
+                    <button 
+                        onClick={() => setView('list')}
+                        className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
+                    >
+                        Cancel
+                    </button>
+                    <button 
+                        onClick={handleSubmit}
+                        disabled={isSubmitting}
+                        className="flex-1 sm:flex-none flex items-center justify-center gap-2 px-6 py-2.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all active:scale-[0.98] text-sm font-semibold disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                        {isSubmitting ? (
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        ) : (
+                            <Icon name="save" className="w-4 h-4" />
+                        )}
+                        {isSubmitting ? 'Submitting...' : 'Save Changes'}
+                    </button>
+                </div>
+            </div>
+
+            {/* Form Content */}
+            <div className="flex-1 overflow-auto">
+                {isLoading ? (
+                    <FormSkeleton />
+                ) : (
+                    <div className="max-w-7xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                        
+                        {/* Main Content */}
+                        <div className="lg:col-span-8 space-y-6 sm:space-y-8">
+                            {mainSections.map((section, sIdx) => (
+                                <div key={sIdx} className="bg-white rounded-2xl border border-slate-200 p-6 sm:p-8 shadow-sm">
+                                    <h2 className="text-lg font-bold text-slate-900 mb-6 flex items-center gap-2">
+                                        <span className="w-1.5 h-6 bg-indigo-600 rounded-full"></span>
+                                        {section.title}
+                                    </h2>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-6 gap-y-5">
+                                        {section.fields.map((field, fIdx) => (
+                                            <div 
+                                                key={fIdx} 
+                                                className={field.class === 'full' ? 'sm:col-span-2' : 'sm:col-span-1'}
+                                            >
+                                                <div className="flex items-center justify-between mb-1.5">
+                                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide">
+                                                        {field.title}
+                                                        {field.valid === 'required' && <span className="text-rose-500 ml-1">*</span>}
+                                                    </label>
+                                                    {field.tooltip && (
+                                                        <div className="group relative">
+                                                            <Icon name="info" className="w-3.5 h-3.5 text-slate-400 cursor-help" />
+                                                            <div className="absolute bottom-full right-0 mb-2 hidden group-hover:block w-48 p-2 bg-slate-900 text-white text-[10px] rounded shadow-xl z-30">
+                                                                {field.tooltip}
+                                                            </div>
+                                                        </div>
+                                                    )}
+                                                </div>
+                                                {renderFieldInternal(field, formData[field.name], (val) => handleChange(field.name, val))}
+                                                {errors[field.name] && (
+                                                    <p className="mt-1.5 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                                                        <Icon name="alert-circle" className="w-3 h-3" /> {errors[field.name]}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                        {/* Sidebar Content */}
+                        <div className="lg:col-span-4 space-y-6 sm:space-y-8">
+                            {sidebarSections.map((section, sIdx) => (
+                                <div key={sIdx} className="bg-white rounded-2xl border border-slate-200 p-6 shadow-sm">
+                                    <h2 className="text-sm font-bold text-slate-900 mb-5 uppercase tracking-wider border-b border-slate-100 pb-3">
+                                        {section.title}
+                                    </h2>
+                                    <div className="space-y-5">
+                                        {section.fields.map((field, fIdx) => (
+                                            <div key={fIdx}>
+                                                {field.title && (
+                                                    <label className="block text-xs font-bold text-slate-700 uppercase tracking-wide mb-1.5">
+                                                        {field.title}
+                                                    </label>
+                                                )}
+                                                {renderFieldInternal(field, formData[field.name], (val) => handleChange(field.name, val))}
+                                                {errors[field.name] && (
+                                                    <p className="mt-1 text-[10px] font-bold text-rose-500 flex items-center gap-1">
+                                                        <Icon name="alert-circle" className="w-3 h-3" /> {errors[field.name]}
+                                                    </p>
+                                                )}
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            ))}
+                        </div>
+
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+};
