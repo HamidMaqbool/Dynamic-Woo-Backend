@@ -31,7 +31,9 @@ export async function apiFetch(url: string, options: FetchOptions = {}) {
         if (response.status === 401) {
             logout();
             setNotification({ message: 'Session expired. Please login again.', type: 'error' });
-            window.location.href = '/'; // Force redirect
+            if (window.location.pathname !== '/') {
+                window.location.href = '/'; // Force redirect
+            }
             throw new Error('Unauthorized');
         }
 

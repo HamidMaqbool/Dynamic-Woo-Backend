@@ -181,14 +181,44 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     },
 
     setProducts: (products) => set({ products }),
-    addProduct: (product) => set((state) => ({ products: [product, ...state.products] })),
-    updateProduct: (id, updatedFields) => set((state) => ({
-        products: state.products.map(p => p.id === id ? { ...p, ...updatedFields } : p)
-    })),
+    addProduct: async (product) => {
+        set({ isLoading: true });
+        try {
+            const data = await apiFetch('/api/products', {
+                method: 'POST',
+                body: JSON.stringify(product)
+            });
+            set((state) => ({ 
+                products: [data, ...state.products],
+                isLoading: false,
+                notification: { message: 'Product added successfully', type: 'success' }
+            }));
+            get().fetchProducts();
+        } catch (error) {
+            set({ isLoading: false });
+        }
+    },
+    updateProduct: async (id, updatedFields) => {
+        set({ isLoading: true });
+        try {
+            const data = await apiFetch(`/api/products/${id}`, {
+                method: 'PUT',
+                body: JSON.stringify(updatedFields)
+            });
+            set((state) => ({
+                products: state.products.map(p => p.id === id ? data : p),
+                isLoading: false,
+                notification: { message: 'Product updated successfully', type: 'success' }
+            }));
+            get().fetchProducts();
+        } catch (error) {
+            set({ isLoading: false });
+        }
+    },
     deleteProduct: async (id) => {
         set({ isLoading: true });
         try {
-            await apiFetch(`https://jsonplaceholder.typicode.com/posts/${id}`, { method: 'DELETE' });
+            await apiFetch(`/api/products/${id}`, { method: 'DELETE' });
             set((state) => ({
                 products: state.products.filter(p => p.id !== id),
                 isLoading: false,
@@ -202,7 +232,10 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     bulkDeleteProducts: async (ids) => {
         set({ isLoading: true });
         try {
-            await Promise.all(ids.map(id => apiFetch(`https://jsonplaceholder.typicode.com/posts/${id}`, { method: 'DELETE' })));
+            await apiFetch('/api/products/bulk-delete', { 
+                method: 'POST',
+                body: JSON.stringify({ ids })
+            });
             set((state) => ({
                 products: state.products.filter(p => !ids.includes(p.id)),
                 isLoading: false,

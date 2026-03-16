@@ -198,8 +198,28 @@ export const DataTable: React.FC = () => {
             </AnimatePresence>
 
             {/* Table Container */}
-            <div className="flex-1 overflow-auto p-4 sm:p-8">
-                <div className="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="flex-1 overflow-auto p-4 sm:p-8 relative">
+                {/* Loading Overlay */}
+                <AnimatePresence>
+                    {isLoading && products.length > 0 && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 z-10 bg-white/40 backdrop-blur-[2px] flex items-center justify-center"
+                        >
+                            <div className="flex flex-col items-center gap-3 bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+                                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">Updating Data...</span>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                <div className={cn(
+                    "bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden transition-all duration-300",
+                    isLoading && products.length > 0 && "opacity-50 grayscale-[0.5]"
+                )}>
                     <div className="overflow-x-auto">
                         {isLoading && products.length === 0 ? (
                             <TableSkeleton />

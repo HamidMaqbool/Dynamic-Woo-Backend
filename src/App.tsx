@@ -16,10 +16,12 @@ export default function App() {
   const { isAuthenticated, theme, fetchSchema, fetchSidebar, fetchRoutes } = useCRMStore();
 
   useEffect(() => {
-    fetchSchema();
-    fetchSidebar();
-    fetchRoutes();
-  }, [fetchSchema, fetchSidebar, fetchRoutes]);
+    if (isAuthenticated) {
+      fetchSchema();
+      fetchSidebar();
+      fetchRoutes();
+    }
+  }, [isAuthenticated, fetchSchema, fetchSidebar, fetchRoutes]);
 
   if (!isAuthenticated) {
     return (

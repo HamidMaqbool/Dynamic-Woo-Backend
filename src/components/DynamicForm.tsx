@@ -133,34 +133,24 @@ export const DynamicForm: React.FC = () => {
 
         setIsSubmitting(true);
         try {
-            // Use centralized apiFetch for submission
-            // Note: In a real app, this would be a real endpoint. 
-            // We'll use a dummy one that supports our token for testing purposes.
-            await apiFetch('https://jsonplaceholder.typicode.com/posts', {
-                method: 'POST',
-                body: JSON.stringify(formData),
-            });
-
             if (id) {
-                updateProduct(id, formData);
+                await updateProduct(id, formData);
             } else {
                 const newProduct: Product = {
                     ...formData,
-                    id: `PRD-${Math.floor(Math.random() * 10000)}`,
-                    created_at: new Date().toISOString().split('T')[0],
+                    product_type: (formData.product_type as any) || 'simple',
                     status: (formData.status as any) || 'publish',
                     image: (formData.image as string) || 'https://picsum.photos/seed/new/100/100',
-                    identifier: `AURO-${Math.floor(Math.random() * 10000)}`,
-                    parent_id: '-',
+                    identifier: (formData.identifier as string) || `AURO-${Math.floor(Math.random() * 10000)}`,
+                    parent_id: (formData.parent_id as string) || '-',
                     title: (formData.item_name as string) || 'Untitled Product'
                 } as Product;
-                addProduct(newProduct);
+                await addProduct(newProduct);
             }
 
-            setNotification({ message: 'Data submitted successfully!', type: 'success' });
             setTimeout(() => navigate('/products'), 1500);
         } catch (error) {
-            setNotification({ message: 'Error submitting data. Please try again.', type: 'error' });
+            // Error is handled in store
         } finally {
             setIsSubmitting(false);
         }
@@ -349,11 +339,33 @@ export const DynamicForm: React.FC = () => {
             </div>
 
             {/* Form Content */}
-            <div className="flex-1 overflow-auto">
-                {isLoading ? (
+            <div className="flex-1 overflow-auto relative">
+                {/* Loading Overlay */}
+                <AnimatePresence>
+                    {(isLoading || isSubmitting) && (
+                        <motion.div 
+                            initial={{ opacity: 0 }}
+                            animate={{ opacity: 1 }}
+                            exit={{ opacity: 0 }}
+                            className="absolute inset-0 z-30 bg-white/40 backdrop-blur-[2px] flex items-center justify-center"
+                        >
+                            <div className="flex flex-col items-center gap-3 bg-white p-6 rounded-2xl shadow-xl border border-slate-100">
+                                <div className="w-8 h-8 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                                <span className="text-xs font-bold text-slate-600 uppercase tracking-widest">
+                                    {isSubmitting ? 'Saving Changes...' : 'Loading Data...'}
+                                </span>
+                            </div>
+                        </motion.div>
+                    )}
+                </AnimatePresence>
+
+                {isLoading && !formData.id ? (
                     <FormSkeleton />
                 ) : (
-                    <div className="max-w-7xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8">
+                    <div className={cn(
+                        "max-w-7xl mx-auto p-4 sm:p-8 grid grid-cols-1 lg:grid-cols-12 gap-8 transition-all duration-300",
+                        (isLoading || isSubmitting) && "opacity-50 grayscale-[0.5]"
+                    )}>
                         
                         {/* Main Content */}
                         <div className="lg:col-span-8 space-y-6 sm:space-y-8">

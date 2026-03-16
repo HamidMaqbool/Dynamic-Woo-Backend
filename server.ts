@@ -109,6 +109,64 @@ async function startServer() {
     }
   });
 
+  app.post("/api/products", (req, res) => {
+    const newProduct = req.body;
+    const productsPath = path.join(process.cwd(), "server/data/products.json");
+    const allProducts = JSON.parse(fs.readFileSync(productsPath, "utf-8"));
+    
+    const productWithId = {
+      ...newProduct,
+      id: `PRD-${Date.now()}`,
+      created_at: new Date().toISOString().split('T')[0]
+    };
+    
+    allProducts.unshift(productWithId);
+    fs.writeFileSync(productsPath, JSON.stringify(allProducts, null, 4));
+    res.status(201).json(productWithId);
+  });
+
+  app.put("/api/products/:id", (req, res) => {
+    const { id } = req.params;
+    const updatedData = req.body;
+    const productsPath = path.join(process.cwd(), "server/data/products.json");
+    const allProducts = JSON.parse(fs.readFileSync(productsPath, "utf-8"));
+    
+    const index = allProducts.findIndex((p: any) => p.id === id);
+    if (index !== -1) {
+      allProducts[index] = { ...allProducts[index], ...updatedData };
+      fs.writeFileSync(productsPath, JSON.stringify(allProducts, null, 4));
+      res.json(allProducts[index]);
+    } else {
+      res.status(404).json({ message: "Product not found" });
+    }
+  });
+
+  app.delete("/api/products/:id", (req, res) => {
+    const { id } = req.params;
+    const productsPath = path.join(process.cwd(), "server/data/products.json");
+    let allProducts = JSON.parse(fs.readFileSync(productsPath, "utf-8"));
+    
+    const initialLength = allProducts.length;
+    allProducts = allProducts.filter((p: any) => p.id !== id);
+    
+    if (allProducts.length < initialLength) {
+      fs.writeFileSync(productsPath, JSON.stringify(allProducts, null, 4));
+      res.json({ success: true, message: "Product deleted" });
+    } else {
+      res.status(404).json({ message: "Product not found" });
+    }
+  });
+
+  app.post("/api/products/bulk-delete", (req, res) => {
+    const { ids } = req.body;
+    const productsPath = path.join(process.cwd(), "server/data/products.json");
+    let allProducts = JSON.parse(fs.readFileSync(productsPath, "utf-8"));
+    
+    allProducts = allProducts.filter((p: any) => !ids.includes(p.id));
+    fs.writeFileSync(productsPath, JSON.stringify(allProducts, null, 4));
+    res.json({ success: true, message: `${ids.length} products deleted` });
+  });
+
   app.get("/api/dashboard", (req, res) => {
     const data = JSON.parse(fs.readFileSync(path.join(process.cwd(), "server/data/dashboard.json"), "utf-8"));
     res.json(data);
