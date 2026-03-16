@@ -28,10 +28,16 @@ export const AppRoutes: React.FC = () => {
         );
     }
 
+    const dashboardRoute = routes.find(r => r.view === 'dashboard') || routes[0];
+    const defaultPath = dashboardRoute?.path || "/dashboard";
+
     return (
         <div className="h-full overflow-hidden">
             <Routes>
-                <Route path="/" element={<Navigate to={routes[0]?.path || "/dashboard"} replace />} />
+                {/* Only redirect from / if / is not explicitly defined as a route in the config */}
+                {!routes.some(r => r.path === '/') && (
+                    <Route path="/" element={<Navigate to={defaultPath} replace />} />
+                )}
                 
                 {routes.map((route) => {
                     const Component = viewMap[route.view] || Dashboard;
@@ -50,7 +56,8 @@ export const AppRoutes: React.FC = () => {
                     );
                 })}
 
-                <Route path="*" element={<Navigate to={routes[0]?.path || "/dashboard"} replace />} />
+                {/* Fallback to default path */}
+                <Route path="*" element={<Navigate to={defaultPath} replace />} />
             </Routes>
         </div>
     );
