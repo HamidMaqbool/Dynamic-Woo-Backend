@@ -1,7 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { useCRMStore, Product } from '../store/useStore';
-import { CRM_SCHEMA } from '../constants/schema';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils/cn';
 import { Icon } from './Icon';
@@ -20,8 +19,7 @@ import { RepeaterField } from './input-type/RepeaterField';
 import { VariationField } from './input-type/VariationField';
 
 export const DynamicForm: React.FC = () => {
-    const { editingProduct, setView, addProduct, updateProduct, setNotification, notification } = useCRMStore();
-    const formConfig = CRM_SCHEMA.form["auroparts-product"];
+    const { editingProduct, setView, addProduct, updateProduct, setNotification, notification, schema } = useCRMStore();
     
     const [formData, setFormData] = useState<Partial<Product>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -29,8 +27,11 @@ export const DynamicForm: React.FC = () => {
     const [isLoading, setIsLoading] = useState(false);
     const [isUploadingSingle, setIsUploadingSingle] = useState(false);
 
+    const formConfig = schema?.form["auroparts-product"] || [];
+
     useEffect(() => {
         const loadData = async () => {
+            if (!schema) return;
             setIsLoading(true);
             // Simulate AJAX load
             await new Promise(resolve => setTimeout(resolve, 1200));
@@ -39,8 +40,8 @@ export const DynamicForm: React.FC = () => {
                 setFormData(editingProduct);
             } else {
                 const defaults: any = {};
-                formConfig.forEach(section => {
-                    section.fields.forEach(field => {
+                formConfig.forEach((section: any) => {
+                    section.fields.forEach((field: any) => {
                         if (field.value !== undefined) defaults[field.name] = field.value;
                         if (field.type === 'repeater' && !defaults[field.name]) {
                             defaults[field.name] = [];
@@ -52,7 +53,11 @@ export const DynamicForm: React.FC = () => {
             setIsLoading(false);
         };
         loadData();
-    }, [editingProduct]);
+    }, [editingProduct, schema]);
+
+    if (!schema) {
+        return <FormSkeleton />;
+    }
 
     const validate = () => {
         const newErrors: Record<string, string> = {};
@@ -294,7 +299,7 @@ export const DynamicForm: React.FC = () => {
                     </button>
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                            {editingProduct ? 'Edit' : 'Create'} {CRM_SCHEMA.table["auroparts-product"].label.singular}
+                            {editingProduct ? 'Edit' : 'Create'} {schema.table["auroparts-product"].label.singular}
                         </h1>
                         <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-0.5">
                             {editingProduct ? `ID: ${editingProduct.id}` : 'New Entry'}

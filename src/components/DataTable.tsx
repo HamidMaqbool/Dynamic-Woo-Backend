@@ -1,7 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
 import { useCRMStore, Product } from '../store/useStore';
-import { CRM_SCHEMA } from '../constants/schema';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils/cn';
 import { Icon } from './Icon';
@@ -12,9 +11,12 @@ export const DataTable: React.FC = () => {
     const { 
         products, 
         isLoading,
+        schema,
         fetchProducts,
         currentPage, 
         itemsPerPage, 
+        totalProducts,
+        totalPages,
         searchQuery, 
         filters,
         setCurrentPage, 
@@ -38,33 +40,24 @@ export const DataTable: React.FC = () => {
         fetchProducts();
     }, [fetchProducts]);
 
-    const tableConfig = CRM_SCHEMA.table["auroparts-product"].table;
+    if (!schema) {
+        return <TableSkeleton />;
+    }
+
+    const tableConfig = schema.table["auroparts-product"].table;
     const cols = tableConfig.cols;
 
-    // Get filter options from schema and data
-    const statusOptions = (CRM_SCHEMA.form["auroparts-product"][0].fields.find(f => f.name === 'status') as any)?.options || [];
-    const parentIdOptions = Array.from(new Set(products.map(p => p.parent_id))).filter(id => id !== '-');
-
-    const filteredProducts = products.filter(p => {
-        const matchesSearch = p.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.id.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            p.identifier.toLowerCase().includes(searchQuery.toLowerCase());
-        
-        const matchesStatus = filters.status === 'all' || p.status === filters.status;
-        const matchesParent = filters.parentId === 'all' || p.parent_id === filters.parentId;
-
-        return matchesSearch && matchesStatus && matchesParent;
-    });
-
-    const totalPages = Math.ceil(filteredProducts.length / itemsPerPage);
-    const startIndex = (currentPage - 1) * itemsPerPage;
-    const paginatedProducts = filteredProducts.slice(startIndex, startIndex + itemsPerPage);
+    // Get filter options from schema
+    const statusOptions = (schema.form["auroparts-product"][0].fields.find((f: any) => f.name === 'status') as any)?.options || [];
+    // Parent ID options could be fetched or derived, for now we'll keep it simple or use a fixed list if needed
+    // In a real app, this might be another API call
+    const parentIdOptions = ['P001', 'P002', 'P003']; 
 
     const toggleSelectAll = () => {
-        if (selectedProductIds.length === paginatedProducts.length && paginatedProducts.length > 0) {
+        if (selectedProductIds.length === products.length && products.length > 0) {
             setSelectedProductIds([]);
         } else {
-            setSelectedProductIds(paginatedProducts.map(p => p.id));
+            setSelectedProductIds(products.map(p => p.id));
         }
     };
 
@@ -99,7 +92,7 @@ export const DataTable: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                            {CRM_SCHEMA.table["auroparts-product"].label.pulular}
+                            {schema.table["auroparts-product"].label.pulular}
                         </h1>
                         <p className="text-xs text-slate-500 font-medium mt-1">
                             Manage and monitor your product inventory
@@ -111,7 +104,7 @@ export const DataTable: React.FC = () => {
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all active:scale-[0.98] text-sm font-semibold w-full sm:w-auto"
                         >
                             <Icon name="plus" className="w-4 h-4" />
-                            <span>Add {CRM_SCHEMA.table["auroparts-product"].label.singular}</span>
+                            <span>Add {schema.table["auroparts-product"].label.singular}</span>
                         </button>
                     </div>
                 </div>
@@ -216,7 +209,7 @@ export const DataTable: React.FC = () => {
                                         <th className="pl-8 pr-4 py-4 w-10">
                                             <input 
                                                 type="checkbox" 
-                                                checked={selectedProductIds.length === paginatedProducts.length && paginatedProducts.length > 0}
+                                                checked={selectedProductIds.length === products.length && products.length > 0}
                                                 onChange={toggleSelectAll}
                                                 className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
                                             />
@@ -233,7 +226,7 @@ export const DataTable: React.FC = () => {
                                     </tr>
                                 </thead>
                                 <tbody className="divide-y divide-slate-100">
-                                    {paginatedProducts.map((product) => (
+                                    {products.map((product) => (
                                         <motion.tr 
                                             initial={{ opacity: 0, y: 10 }}
                                             animate={{ opacity: 1, y: 0 }}
@@ -258,7 +251,7 @@ export const DataTable: React.FC = () => {
                                             ))}
                                         </motion.tr>
                                     ))}
-                                    {paginatedProducts.length === 0 && (
+                                    {products.length === 0 && (
                                         <tr>
                                             <td colSpan={cols.length + 1} className="px-6 py-20 text-center">
                                                 <div className="flex flex-col items-center gap-3">
@@ -294,7 +287,7 @@ export const DataTable: React.FC = () => {
                         <span>entries</span>
                     </div>
                     <span className="hidden sm:inline opacity-30">|</span>
-                    <span>Showing {startIndex + 1} to {Math.min(startIndex + itemsPerPage, filteredProducts.length)} of {filteredProducts.length}</span>
+                    <span>Showing {((currentPage - 1) * itemsPerPage) + 1} to {Math.min(currentPage * itemsPerPage, totalProducts)} of {totalProducts}</span>
                 </div>
 
                 <div className="flex items-center gap-2">

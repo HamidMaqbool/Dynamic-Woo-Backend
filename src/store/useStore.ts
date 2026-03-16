@@ -1,9 +1,6 @@
 
 import { create } from 'zustand';
 
-import dashboardDataJson from '../data/dashboard.json';
-import settingsDataJson from '../data/settings.json';
-
 export interface Variation {
     id: string;
     combination: string[];
@@ -37,9 +34,13 @@ interface CRMState {
     isSidebarLoading: boolean;
     dashboardData: any | null;
     settingsData: any | null;
+    schema: any | null;
+    routes: any[] | null;
     selectedProductIds: string[];
     currentPage: number;
     itemsPerPage: number;
+    totalProducts: number;
+    totalPages: number;
     searchQuery: string;
     filters: {
         status: string;
@@ -59,6 +60,8 @@ interface CRMState {
     fetchSidebar: () => Promise<void>;
     fetchDashboard: () => Promise<void>;
     fetchSettings: () => Promise<void>;
+    fetchSchema: () => Promise<void>;
+    fetchRoutes: () => Promise<void>;
     setProducts: (products: Product[]) => void;
     addProduct: (product: Product) => void;
     updateProduct: (id: string, product: Partial<Product>) => void;
@@ -76,64 +79,6 @@ interface CRMState {
     logout: () => void;
 }
 
-// Initial mock data
-const MOCK_PRODUCTS: Product[] = [
-    {
-        id: 'PRD-1000',
-        image: 'https://picsum.photos/seed/p1/100/100',
-        identifier: 'AURO-5000',
-        parent_id: '-',
-        title: 'Brake Pad Set - Front',
-        product_type: 'variation',
-        status: 'publish',
-        created_at: '2023-10-01',
-        company_name: 'AutoParts Corp',
-        year: '2023',
-        odo_reading: '0',
-        stock_status: 'In Stock',
-        price: '$45.00 - $65.00',
-        email: 'sales@autoparts.com',
-        model: 'X-Series',
-        comments: 'Available in multiple materials',
-        variations: {
-            options: [
-                { name: 'Material', values: ['Ceramic', 'Semi-Metallic'] },
-                { name: 'Size', values: ['Standard', 'Heavy Duty'] }
-            ],
-            variants: [
-                { id: 'v1', combination: ['Ceramic', 'Standard'], price: '45.00', sku: 'BP-CER-STD', inventory: 50, isDefault: true, image: 'https://picsum.photos/seed/v1/100/100' },
-                { id: 'v2', combination: ['Ceramic', 'Heavy Duty'], price: '55.00', sku: 'BP-CER-HD', inventory: 30, image: 'https://picsum.photos/seed/v2/100/100' },
-                { id: 'v3', combination: ['Semi-Metallic', 'Standard'], price: '50.00', sku: 'BP-SEM-STD', inventory: 40, image: 'https://picsum.photos/seed/v3/100/100' },
-                { id: 'v4', combination: ['Semi-Metallic', 'Heavy Duty'], price: '65.00', sku: 'BP-SEM-HD', inventory: 20, image: 'https://picsum.photos/seed/v4/100/100' }
-            ]
-        }
-    },
-    ...Array.from({ length: 24 }).map((_, i) => ({
-        id: `PRD-${1001 + i}`,
-        image: `https://picsum.photos/seed/${i + 11}/100/100`,
-        identifier: `AURO-${5001 + i}`,
-        parent_id: i % 3 === 0 ? `PRD-999` : '-',
-        title: `Car Part Component ${i + 2}`,
-        product_type: 'simple' as 'simple' | 'variation',
-        status: (i % 5 === 0 ? 'draft' : 'publish') as 'draft' | 'publish' | 'deleted',
-        created_at: new Date(Date.now() - i * 86400000).toISOString().split('T')[0],
-        company_name: 'AutoParts Corp',
-        year: '2023',
-        odo_reading: '15000',
-        stock_status: 'In Stock',
-        price: '$120.00',
-        email: 'sales@autoparts.com',
-        model: 'X-Series',
-        comments: 'Standard replacement part',
-        gallery: [
-            { id: '1', url: `https://picsum.photos/seed/${i}1/400/400` },
-            { id: '2', url: `https://picsum.photos/seed/${i}2/400/400` }
-        ]
-    }))
-];
-
-import sidebarDataJson from '../data/sidebar.json';
-
 export const useCRMStore = create<CRMState>((set, get) => ({
     products: [],
     isLoading: false,
@@ -141,9 +86,13 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     isSidebarLoading: false,
     dashboardData: null,
     settingsData: null,
+    schema: null,
+    routes: null,
     selectedProductIds: [],
     currentPage: 1,
     itemsPerPage: 10,
+    totalProducts: 0,
+    totalPages: 0,
     searchQuery: '',
     filters: {
         status: 'all',
@@ -158,26 +107,79 @@ export const useCRMStore = create<CRMState>((set, get) => ({
 
     fetchProducts: async () => {
         set({ isLoading: true });
-        // Simulate AJAX delay
-        await new Promise(resolve => setTimeout(resolve, 1500));
-        set({ products: MOCK_PRODUCTS, isLoading: false });
+        const { currentPage, itemsPerPage, searchQuery, filters } = get();
+        try {
+            const params = new URLSearchParams({
+                page: currentPage.toString(),
+                limit: itemsPerPage.toString(),
+                search: searchQuery,
+                status: filters.status,
+                parentId: filters.parentId
+            });
+            const response = await fetch(`/api/products?${params.toString()}`);
+            const data = await response.json();
+            set({ 
+                products: data.products, 
+                totalProducts: data.total,
+                totalPages: data.totalPages,
+                isLoading: false 
+            });
+        } catch (error) {
+            console.error("Failed to fetch products", error);
+            set({ isLoading: false });
+        }
     },
 
     fetchSidebar: async () => {
         set({ isSidebarLoading: true });
-        // Simulate AJAX delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        set({ sidebarData: sidebarDataJson, isSidebarLoading: false });
+        try {
+            const response = await fetch('/api/sidebar');
+            const data = await response.json();
+            set({ sidebarData: data, isSidebarLoading: false });
+        } catch (error) {
+            console.error("Failed to fetch sidebar", error);
+            set({ isSidebarLoading: false });
+        }
     },
 
     fetchDashboard: async () => {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        set({ dashboardData: dashboardDataJson });
+        try {
+            const response = await fetch('/api/dashboard');
+            const data = await response.json();
+            set({ dashboardData: data });
+        } catch (error) {
+            console.error("Failed to fetch dashboard", error);
+        }
     },
 
     fetchSettings: async () => {
-        await new Promise(resolve => setTimeout(resolve, 800));
-        set({ settingsData: settingsDataJson });
+        try {
+            const response = await fetch('/api/settings');
+            const data = await response.json();
+            set({ settingsData: data });
+        } catch (error) {
+            console.error("Failed to fetch settings", error);
+        }
+    },
+
+    fetchSchema: async () => {
+        try {
+            const response = await fetch('/api/schema');
+            const data = await response.json();
+            set({ schema: data });
+        } catch (error) {
+            console.error("Failed to fetch schema", error);
+        }
+    },
+
+    fetchRoutes: async () => {
+        try {
+            const response = await fetch('/api/routes');
+            const data = await response.json();
+            set({ routes: data });
+        } catch (error) {
+            console.error("Failed to fetch routes", error);
+        }
     },
 
     setProducts: (products) => set({ products }),
@@ -195,6 +197,8 @@ export const useCRMStore = create<CRMState>((set, get) => ({
             isLoading: false,
             notification: { message: 'Product deleted successfully', type: 'success' }
         }));
+        // Refresh products to maintain server-side consistency
+        get().fetchProducts();
     },
     bulkDeleteProducts: async (ids) => {
         set({ isLoading: true });
@@ -207,15 +211,29 @@ export const useCRMStore = create<CRMState>((set, get) => ({
             selectedProductIds: [],
             notification: { message: `${ids.length} products deleted successfully`, type: 'success' }
         }));
+        // Refresh products to maintain server-side consistency
+        get().fetchProducts();
     },
     setSelectedProductIds: (ids) => set({ selectedProductIds: ids }),
-    setCurrentPage: (page) => set({ currentPage: page }),
-    setItemsPerPage: (count) => set({ itemsPerPage: count, currentPage: 1 }),
-    setSearchQuery: (query) => set({ searchQuery: query, currentPage: 1 }),
-    setFilters: (filters) => set((state) => ({ 
-        filters: { ...state.filters, ...filters },
-        currentPage: 1 
-    })),
+    setCurrentPage: (page) => {
+        set({ currentPage: page });
+        get().fetchProducts();
+    },
+    setItemsPerPage: (count) => {
+        set({ itemsPerPage: count, currentPage: 1 });
+        get().fetchProducts();
+    },
+    setSearchQuery: (query) => {
+        set({ searchQuery: query, currentPage: 1 });
+        get().fetchProducts();
+    },
+    setFilters: (filters) => {
+        set((state) => ({ 
+            filters: { ...state.filters, ...filters },
+            currentPage: 1 
+        }));
+        get().fetchProducts();
+    },
     setTheme: (theme) => {
         localStorage.setItem('crm-theme', theme);
         set({ theme });
@@ -225,17 +243,35 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     
     login: async (email, password) => {
         set({ isLoading: true });
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        if (email && password) {
-            set({ 
-                isAuthenticated: true, 
-                user: { email, name: email.split('@')[0] },
-                isLoading: false 
+        try {
+            const response = await fetch('/api/login', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ email, password })
             });
-            return true;
+            const data = await response.json();
+            if (data.success) {
+                set({ 
+                    isAuthenticated: true, 
+                    user: data.user,
+                    isLoading: false 
+                });
+                return true;
+            } else {
+                set({ 
+                    isLoading: false,
+                    notification: { message: data.message || 'Login failed', type: 'error' }
+                });
+                return false;
+            }
+        } catch (error) {
+            console.error("Login error", error);
+            set({ 
+                isLoading: false,
+                notification: { message: 'An error occurred during login', type: 'error' }
+            });
+            return false;
         }
-        set({ isLoading: false });
-        return false;
     },
     logout: () => set({ isAuthenticated: false, user: null, view: 'dashboard' }),
 }));

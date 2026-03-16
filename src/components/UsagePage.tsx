@@ -1,6 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
-import { CRM_SCHEMA } from '../constants/schema';
+import { useCRMStore } from '../store/useStore';
 import { Info, Code, Layout, CheckCircle2, HelpCircle } from 'lucide-react';
 import { FormSkeleton } from './Skeleton';
 import { motion } from 'motion/react';
@@ -33,30 +33,20 @@ const FIELD_TYPE_DOCS = {
 };
 
 export const UsagePage: React.FC = () => {
+    const { schema } = useCRMStore();
     const [isLoading, setIsLoading] = useState(true);
-    const formConfig = CRM_SCHEMA.form["auroparts-product"];
     
     useEffect(() => {
         const load = async () => {
+            if (!schema) return;
             setIsLoading(true);
             await new Promise(resolve => setTimeout(resolve, 1000));
             setIsLoading(false);
         };
         load();
-    }, []);
+    }, [schema]);
 
-    // Extract all unique field types and their configurations
-    const fieldUsages: any[] = [];
-    formConfig.forEach(section => {
-        section.fields.forEach(field => {
-            fieldUsages.push({
-                ...field,
-                section: section.title
-            });
-        });
-    });
-
-    if (isLoading) {
+    if (!schema || isLoading) {
         return (
             <div className="flex flex-col h-full bg-[#F8F9FA] text-[#1A1A1A] font-sans">
                 <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-8 py-6">
@@ -68,6 +58,19 @@ export const UsagePage: React.FC = () => {
             </div>
         );
     }
+
+    const formConfig = schema.form["auroparts-product"];
+
+    // Extract all unique field types and their configurations
+    const fieldUsages: any[] = [];
+    formConfig.forEach((section: any) => {
+        section.fields.forEach((field: any) => {
+            fieldUsages.push({
+                ...field,
+                section: section.title
+            });
+        });
+    });
 
     return (
         <div className="flex flex-col h-full bg-[#F8F9FA] text-[#1A1A1A] font-sans">
@@ -188,7 +191,7 @@ export const UsagePage: React.FC = () => {
                             <span className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">JSON Format</span>
                         </div>
                         <pre className="text-indigo-300 font-mono text-xs overflow-auto max-h-[400px] custom-scrollbar">
-                            {JSON.stringify(CRM_SCHEMA.form["auroparts-product"], null, 2)}
+                            {JSON.stringify(schema.form["auroparts-product"], null, 2)}
                         </pre>
                     </div>
 

@@ -1,5 +1,4 @@
-
-export const CRM_SCHEMA = {
+{
     "database": "CarpartsSchema",
     "table": {
         "auroparts-product": {
@@ -128,4 +127,4 @@ export const CRM_SCHEMA = {
             }
         ]
     }
-};
+}
