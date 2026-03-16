@@ -6,6 +6,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils/cn';
 import { Icon } from './Icon';
 import { FormSkeleton } from './Skeleton';
+import { rules, validate as runValidation, ValidationRule } from '../utils/validation';
+import { apiFetch } from '../services/api';
 
 // Import individual input components
 import { TextField } from './input-type/TextField';
@@ -67,18 +69,31 @@ export const DynamicForm: React.FC = () => {
     }
 
     const validate = () => {
-        const newErrors: Record<string, string> = {};
-        formConfig.forEach(section => {
-            section.fields.forEach(field => {
-                const val = formData[field.name];
-                if (field.valid === 'required' && (!val || (Array.isArray(val) && val.length === 0))) {
-                    newErrors[field.name] = `${field.title || field.name} is required`;
+        const validationSchema: Record<string, ValidationRule[]> = {};
+        
+        formConfig.forEach((section: any) => {
+            section.fields.forEach((field: any) => {
+                const fieldRules: ValidationRule[] = [];
+                if (field.valid === 'required') {
+                    fieldRules.push(rules.required);
                 }
-                if (field.type === 'email' && val && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(val)) {
-                    newErrors[field.name] = 'Invalid email format';
+                if (field.type === 'email') {
+                    fieldRules.push(rules.email);
+                }
+                if (field.type === 'url') {
+                    fieldRules.push(rules.url);
+                }
+                if (field.type === 'number') {
+                    fieldRules.push(rules.numeric);
+                }
+                
+                if (fieldRules.length > 0) {
+                    validationSchema[field.name] = fieldRules;
                 }
             });
         });
+        
+        const newErrors = runValidation(formData, validationSchema);
         setErrors(newErrors);
         return Object.keys(newErrors).length === 0;
     };
@@ -117,19 +132,17 @@ export const DynamicForm: React.FC = () => {
         }
 
         setIsSubmitting(true);
-        console.log('Saving Form Data:', formData);
         try {
-            // Simulate submission to dummy URL
-            const response = await fetch('https://jsonplaceholder.typicode.com/posts', {
+            // Use centralized apiFetch for submission
+            // Note: In a real app, this would be a real endpoint. 
+            // We'll use a dummy one that supports our token for testing purposes.
+            await apiFetch('https://jsonplaceholder.typicode.com/posts', {
                 method: 'POST',
                 body: JSON.stringify(formData),
-                headers: { 'Content-type': 'application/json; charset=UTF-8' },
             });
 
-            if (!response.ok) throw new Error('Submission failed');
-
-            if (editingProduct) {
-                updateProduct(editingProduct.id, formData);
+            if (id) {
+                updateProduct(id, formData);
             } else {
                 const newProduct: Product = {
                     ...formData,
@@ -144,7 +157,7 @@ export const DynamicForm: React.FC = () => {
                 addProduct(newProduct);
             }
 
-            setNotification({ message: 'Data submitted successfully to dummy URL!', type: 'success' });
+            setNotification({ message: 'Data submitted successfully!', type: 'success' });
             setTimeout(() => navigate('/products'), 1500);
         } catch (error) {
             setNotification({ message: 'Error submitting data. Please try again.', type: 'error' });

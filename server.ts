@@ -9,6 +9,39 @@ async function startServer() {
 
   app.use(express.json());
 
+  const VALID_TOKEN = "auro-parts-secret-token-123";
+
+  // Auth Middleware
+  const authMiddleware = (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const authHeader = req.headers.authorization;
+    if (authHeader === `Bearer ${VALID_TOKEN}`) {
+      next();
+    } else {
+      res.status(401).json({ success: false, message: "Unauthorized: Token expired or invalid" });
+    }
+  };
+
+  // Public Routes
+  app.post("/api/login", (req, res) => {
+    const { email, password } = req.body;
+    // Dummy validation
+    if (email === "admin@auroparts.com" && password === "admin123") {
+      res.json({ 
+        success: true, 
+        user: { email, name: "Admin User" },
+        token: VALID_TOKEN 
+      });
+    } else {
+      res.status(401).json({ success: false, message: "Invalid email or password" });
+    }
+  });
+
+  // Protected Routes - Apply middleware to all /api routes after this
+  app.use("/api", (req, res, next) => {
+    if (req.path === "/login") return next();
+    authMiddleware(req, res, next);
+  });
+
   // API Routes
   app.get("/api/sidebar", (req, res) => {
     const data = JSON.parse(fs.readFileSync(path.join(process.cwd(), "server/data/sidebar.json"), "utf-8"));
@@ -23,16 +56,6 @@ async function startServer() {
   app.get("/api/routes", (req, res) => {
     const data = JSON.parse(fs.readFileSync(path.join(process.cwd(), "server/data/routes.json"), "utf-8"));
     res.json(data);
-  });
-
-  app.post("/api/login", (req, res) => {
-    const { email, password } = req.body;
-    // Dummy validation
-    if (email === "admin@auroparts.com" && password === "admin123") {
-      res.json({ success: true, user: { email, name: "Admin User" } });
-    } else {
-      res.status(401).json({ success: false, message: "Invalid email or password" });
-    }
   });
 
   app.get("/api/products", (req, res) => {

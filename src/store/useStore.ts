@@ -1,5 +1,6 @@
 
 import { create } from 'zustand';
+import { apiFetch } from '../services/api';
 
 export interface Variation {
     id: string;
@@ -52,6 +53,7 @@ interface CRMState {
     
     // Auth
     isAuthenticated: boolean;
+    token: string | null;
     user: { email: string; name: string } | null;
     
     // Actions
@@ -100,22 +102,23 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     theme: (localStorage.getItem('crm-theme') as any) || 'light',
     editingProduct: null,
     notification: null,
-    isAuthenticated: false,
-    user: null,
+    isAuthenticated: !!localStorage.getItem('crm-token'),
+    token: localStorage.getItem('crm-token'),
+    user: JSON.parse(localStorage.getItem('crm-user') || 'null'),
 
     fetchProducts: async () => {
         set({ isLoading: true });
         const { currentPage, itemsPerPage, searchQuery, filters } = get();
         try {
-            const params = new URLSearchParams({
-                page: currentPage.toString(),
-                limit: itemsPerPage.toString(),
-                search: searchQuery,
-                status: filters.status,
-                parentId: filters.parentId
+            const data = await apiFetch('/api/products', {
+                params: {
+                    page: currentPage.toString(),
+                    limit: itemsPerPage.toString(),
+                    search: searchQuery,
+                    status: filters.status,
+                    parentId: filters.parentId
+                }
             });
-            const response = await fetch(`/api/products?${params.toString()}`);
-            const data = await response.json();
             set({ 
                 products: data.products, 
                 totalProducts: data.total,
@@ -123,7 +126,6 @@ export const useCRMStore = create<CRMState>((set, get) => ({
                 isLoading: false 
             });
         } catch (error) {
-            console.error("Failed to fetch products", error);
             set({ isLoading: false });
         }
     },
@@ -131,65 +133,48 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     fetchSidebar: async () => {
         set({ isSidebarLoading: true });
         try {
-            const response = await fetch('/api/sidebar');
-            const data = await response.json();
+            const data = await apiFetch('/api/sidebar');
             set({ sidebarData: data, isSidebarLoading: false });
         } catch (error) {
-            console.error("Failed to fetch sidebar", error);
             set({ isSidebarLoading: false });
         }
     },
 
     fetchDashboard: async () => {
         try {
-            const response = await fetch('/api/dashboard');
-            const data = await response.json();
+            const data = await apiFetch('/api/dashboard');
             set({ dashboardData: data });
-        } catch (error) {
-            console.error("Failed to fetch dashboard", error);
-        }
+        } catch (error) {}
     },
 
     fetchSettings: async () => {
         try {
-            const response = await fetch('/api/settings');
-            const data = await response.json();
+            const data = await apiFetch('/api/settings');
             set({ settingsData: data });
-        } catch (error) {
-            console.error("Failed to fetch settings", error);
-        }
+        } catch (error) {}
     },
 
     fetchSchema: async () => {
         try {
-            const response = await fetch('/api/schema');
-            const data = await response.json();
+            const data = await apiFetch('/api/schema');
             set({ schema: data });
-        } catch (error) {
-            console.error("Failed to fetch schema", error);
-        }
+        } catch (error) {}
     },
 
     fetchRoutes: async () => {
         try {
-            const response = await fetch('/api/routes');
-            const data = await response.json();
+            const data = await apiFetch('/api/routes');
             set({ routes: data });
-        } catch (error) {
-            console.error("Failed to fetch routes", error);
-        }
+        } catch (error) {}
     },
 
     fetchProductById: async (id: string) => {
         set({ isLoading: true });
         try {
-            const response = await fetch(`/api/products/${id}`);
-            if (!response.ok) throw new Error('Product not found');
-            const data = await response.json();
+            const data = await apiFetch(`/api/products/${id}`);
             set({ editingProduct: data, isLoading: false });
             return data;
         } catch (error) {
-            console.error("Failed to fetch product", error);
             set({ isLoading: false, notification: { message: 'Product not found', type: 'error' } });
             return null;
         }
@@ -202,30 +187,32 @@ export const useCRMStore = create<CRMState>((set, get) => ({
     })),
     deleteProduct: async (id) => {
         set({ isLoading: true });
-        // Dummy AJAX
-        await fetch(`https://jsonplaceholder.typicode.com/posts/${id}`, { method: 'DELETE' });
-        await new Promise(resolve => setTimeout(resolve, 800));
-        set((state) => ({
-            products: state.products.filter(p => p.id !== id),
-            isLoading: false,
-            notification: { message: 'Product deleted successfully', type: 'success' }
-        }));
-        // Refresh products to maintain server-side consistency
-        get().fetchProducts();
+        try {
+            await apiFetch(`https://jsonplaceholder.typicode.com/posts/${id}`, { method: 'DELETE' });
+            set((state) => ({
+                products: state.products.filter(p => p.id !== id),
+                isLoading: false,
+                notification: { message: 'Product deleted successfully', type: 'success' }
+            }));
+            get().fetchProducts();
+        } catch (error) {
+            set({ isLoading: false });
+        }
     },
     bulkDeleteProducts: async (ids) => {
         set({ isLoading: true });
-        // Dummy AJAX
-        await Promise.all(ids.map(id => fetch(`https://jsonplaceholder.typicode.com/posts/${id}`, { method: 'DELETE' })));
-        await new Promise(resolve => setTimeout(resolve, 1200));
-        set((state) => ({
-            products: state.products.filter(p => !ids.includes(p.id)),
-            isLoading: false,
-            selectedProductIds: [],
-            notification: { message: `${ids.length} products deleted successfully`, type: 'success' }
-        }));
-        // Refresh products to maintain server-side consistency
-        get().fetchProducts();
+        try {
+            await Promise.all(ids.map(id => apiFetch(`https://jsonplaceholder.typicode.com/posts/${id}`, { method: 'DELETE' })));
+            set((state) => ({
+                products: state.products.filter(p => !ids.includes(p.id)),
+                isLoading: false,
+                selectedProductIds: [],
+                notification: { message: `${ids.length} products deleted successfully`, type: 'success' }
+            }));
+            get().fetchProducts();
+        } catch (error) {
+            set({ isLoading: false });
+        }
     },
     setSelectedProductIds: (ids) => set({ selectedProductIds: ids }),
     setCurrentPage: (page) => {
@@ -263,9 +250,12 @@ export const useCRMStore = create<CRMState>((set, get) => ({
             });
             const data = await response.json();
             if (data.success) {
+                localStorage.setItem('crm-token', data.token);
+                localStorage.setItem('crm-user', JSON.stringify(data.user));
                 set({ 
                     isAuthenticated: true, 
                     user: data.user,
+                    token: data.token,
                     isLoading: false 
                 });
                 return true;
@@ -285,5 +275,9 @@ export const useCRMStore = create<CRMState>((set, get) => ({
             return false;
         }
     },
-    logout: () => set({ isAuthenticated: false, user: null }),
+    logout: () => {
+        localStorage.removeItem('crm-token');
+        localStorage.removeItem('crm-user');
+        set({ isAuthenticated: false, user: null, token: null });
+    },
 }));
