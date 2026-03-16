@@ -13,7 +13,7 @@ import { AppRoutes } from './routes/AppRoutes';
 import { Notification } from './components/Notification';
 
 export default function App() {
-  const { isAuthenticated, theme, fetchSchema, fetchSidebar, fetchRoutes, notification, setNotification } = useCRMStore();
+  const { isAuthenticated, theme, fetchSchema, fetchSidebar, fetchRoutes } = useCRMStore();
 
   useEffect(() => {
     fetchSchema();
@@ -26,13 +26,7 @@ export default function App() {
       <div className={cn("h-screen w-full", theme)}>
         <IconSprite />
         <LoginPage />
-        {notification && (
-            <Notification 
-                message={notification.message} 
-                type={notification.type} 
-                onClose={() => setNotification(null)} 
-            />
-        )}
+        <Notification />
       </div>
     );
   }
@@ -44,13 +38,7 @@ export default function App() {
       <main className="flex-1 relative overflow-hidden">
         <AppRoutes />
       </main>
-      {notification && (
-          <Notification 
-              message={notification.message} 
-              type={notification.type} 
-              onClose={() => setNotification(null)} 
-          />
-      )}
+      <Notification />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { useCRMStore } from '../store/useStore';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { Dashboard } from '../components/Dashboard';
 import { DataTable } from '../components/DataTable';
 import { DynamicForm } from '../components/DynamicForm';
@@ -7,29 +7,18 @@ import { UsagePage } from '../components/UsagePage';
 import { Settings } from '../components/Settings';
 
 export const AppRoutes: React.FC = () => {
-    const { view, editingProduct } = useCRMStore();
-
-    const renderView = () => {
-        switch (view) {
-            case 'dashboard':
-                return <Dashboard />;
-            case 'list':
-                return <DataTable />;
-            case 'add':
-            case 'edit':
-                return <DynamicForm />;
-            case 'usage':
-                return <UsagePage />;
-            case 'settings':
-                return <Settings />;
-            default:
-                return <Dashboard />;
-        }
-    };
-
     return (
         <div className="h-full overflow-hidden">
-            {renderView()}
+            <Routes>
+                <Route path="/" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/dashboard" element={<Dashboard />} />
+                <Route path="/products" element={<DataTable />} />
+                <Route path="/products/add" element={<DynamicForm />} />
+                <Route path="/products/edit/:id" element={<DynamicForm />} />
+                <Route path="/usage" element={<UsagePage />} />
+                <Route path="/settings" element={<Settings />} />
+                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+            </Routes>
         </div>
     );
 };

@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import { useCRMStore } from '../store/useStore';
 import { cn } from '../utils/cn';
 import { motion, AnimatePresence } from 'motion/react';
@@ -8,27 +9,31 @@ import { SidebarSkeleton } from './Skeleton';
 
 interface SidebarItemProps {
   item: any;
-  setView: (view: any) => void;
   closeMobile: () => void;
   isCollapsed?: boolean;
 }
 
-const SidebarItem: React.FC<SidebarItemProps> = ({ item, setView, closeMobile, isCollapsed }) => {
+const SidebarItem: React.FC<SidebarItemProps> = ({ item, closeMobile, isCollapsed }) => {
   const [isExpanded, setIsExpanded] = useState(false);
   const [isHovered, setIsHovered] = useState(false);
+  const location = useLocation();
   const hasChildren = item.children && item.children.length > 0;
 
-  const handleClick = () => {
-    if (hasChildren) {
-      setIsExpanded(!isExpanded);
-    } else {
-      if (item.path === 'dashboard') setView('dashboard');
-      else if (item.path === 'products/all' || item.path === 'products') setView('list');
-      else if (item.path === 'products/new') setView('add');
-      else if (item.path === 'usage') setView('usage');
-      else if (item.path === 'settings') setView('settings');
-      closeMobile();
-    }
+  const isActive = (path: string) => {
+    if (path === 'dashboard' && location.pathname === '/dashboard') return true;
+    if (path === 'products' && location.pathname.startsWith('/products')) return true;
+    if (path === 'usage' && location.pathname === '/usage') return true;
+    if (path === 'settings' && location.pathname === '/settings') return true;
+    return false;
+  };
+
+  const getRoutePath = (path: string) => {
+    if (path === 'dashboard') return '/dashboard';
+    if (path === 'products/all' || path === 'products') return '/products';
+    if (path === 'products/new' || path === 'products/add') return '/products/add';
+    if (path === 'usage') return '/usage';
+    if (path === 'settings') return '/settings';
+    return `/${path}`;
   };
 
   return (
@@ -37,25 +42,40 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ item, setView, closeMobile, i
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <button
-        onClick={handleClick}
-        className={cn(
-          "w-full flex items-center justify-between gap-4 px-4 py-3 text-sm font-semibold transition-all rounded-xl group",
-          "hover:bg-slate-800 text-slate-400 hover:text-slate-200",
-          isCollapsed && "justify-center px-0"
-        )}
-      >
-        <div className="flex items-center gap-4">
-          {item.icon && <Icon name={item.icon} className={cn("w-5 h-5 text-slate-500 group-hover:text-slate-300", isCollapsed && "w-6 h-6")} />}
+      {hasChildren ? (
+        <button
+          onClick={() => setIsExpanded(!isExpanded)}
+          className={cn(
+            "w-full flex items-center justify-between gap-4 px-4 py-3 text-sm font-semibold transition-all rounded-xl group",
+            "hover:bg-slate-800 text-slate-400 hover:text-slate-200",
+            isCollapsed && "justify-center px-0"
+          )}
+        >
+          <div className="flex items-center gap-4">
+            {item.icon && <Icon name={item.icon} className={cn("w-5 h-5 text-slate-500 group-hover:text-slate-300", isCollapsed && "w-6 h-6")} />}
+            {!isCollapsed && item.title}
+          </div>
+          {!isCollapsed && (
+            <Icon 
+              name={isExpanded ? 'chevron-down' : 'chevron-right'} 
+              className={cn("w-4 h-4 transition-transform", isExpanded && "text-indigo-400")} 
+            />
+          )}
+        </button>
+      ) : (
+        <Link
+          to={getRoutePath(item.path)}
+          onClick={closeMobile}
+          className={cn(
+            "w-full flex items-center gap-4 px-4 py-3 text-sm font-semibold transition-all rounded-xl group",
+            isActive(item.path) ? "bg-indigo-600/10 text-indigo-400" : "hover:bg-slate-800 text-slate-400 hover:text-slate-200",
+            isCollapsed && "justify-center px-0"
+          )}
+        >
+          {item.icon && <Icon name={item.icon} className={cn("w-5 h-5", isActive(item.path) ? "text-indigo-400" : "text-slate-500 group-hover:text-slate-300", isCollapsed && "w-6 h-6")} />}
           {!isCollapsed && item.title}
-        </div>
-        {!isCollapsed && hasChildren && (
-          <Icon 
-            name={isExpanded ? 'chevron-down' : 'chevron-right'} 
-            className={cn("w-4 h-4 transition-transform", isExpanded && "text-indigo-400")} 
-          />
-        )}
-      </button>
+        </Link>
+      )}
 
       {/* Hover Submenu for Collapsed State */}
       <AnimatePresence>
@@ -70,18 +90,14 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ item, setView, closeMobile, i
               {item.title}
             </div>
             {item.children.map((child: any, idx: number) => (
-              <button
+              <Link
                 key={idx}
-                onClick={() => {
-                  if (child.path === 'products/all') setView('list');
-                  else if (child.path === 'products/new') setView('add');
-                  else if (child.path === 'usage') setView('usage');
-                  closeMobile();
-                }}
-                className="w-full text-left px-3 py-2 text-xs font-medium text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50 rounded-lg transition-all"
+                to={getRoutePath(child.path)}
+                onClick={closeMobile}
+                className="w-full block text-left px-3 py-2 text-xs font-medium text-slate-400 hover:text-indigo-400 hover:bg-slate-700/50 rounded-lg transition-all"
               >
                 {child.title}
-              </button>
+              </Link>
             ))}
           </motion.div>
         )}
@@ -97,18 +113,14 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ item, setView, closeMobile, i
             className="overflow-hidden pl-10 space-y-1"
           >
             {item.children.map((child: any, idx: number) => (
-              <button
+              <Link
                 key={idx}
-                onClick={() => {
-                  if (child.path === 'products/all') setView('list');
-                  else if (child.path === 'products/new') setView('add');
-                  else if (child.path === 'usage') setView('usage');
-                  closeMobile();
-                }}
-                className="w-full text-left px-4 py-2 text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors"
+                to={getRoutePath(child.path)}
+                onClick={closeMobile}
+                className="w-full block text-left px-4 py-2 text-xs font-medium text-slate-500 hover:text-indigo-400 transition-colors"
               >
                 {child.title}
-              </button>
+              </Link>
             ))}
           </motion.div>
         )}
@@ -118,9 +130,10 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ item, setView, closeMobile, i
 };
 
 export const Sidebar: React.FC = () => {
-    const { setView, sidebarData, isSidebarLoading, fetchSidebar, logout, user } = useCRMStore();
+    const { sidebarData, isSidebarLoading, fetchSidebar, logout, user } = useCRMStore();
     const [isOpen, setIsOpen] = useState(false);
     const [isCollapsed, setIsCollapsed] = useState(false);
+    const location = useLocation();
 
     useEffect(() => {
         fetchSidebar();
@@ -130,14 +143,14 @@ export const Sidebar: React.FC = () => {
         <div className="flex flex-col h-full bg-slate-900 text-slate-300 border-r border-slate-800">
             {/* Logo */}
             <div className={cn("p-8 border-b border-slate-800", collapsed && "p-4 flex justify-center")}>
-                <div className="flex items-center gap-3">
+                <Link to="/dashboard" className="flex items-center gap-3">
                     <div className="w-9 h-9 bg-indigo-600 rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20 shrink-0">
                         <Icon name="package" className="w-5 h-5 text-white" />
                     </div>
                     {!collapsed && (
                         <span className="text-xl font-bold tracking-tight text-white">AURO<span className="text-indigo-500">CRM</span></span>
                     )}
-                </div>
+                </Link>
             </div>
 
             {/* Nav */}
@@ -149,7 +162,6 @@ export const Sidebar: React.FC = () => {
                         <SidebarItem 
                           key={idx} 
                           item={item} 
-                          setView={setView} 
                           closeMobile={() => setIsOpen(false)} 
                           isCollapsed={collapsed}
                         />
@@ -174,16 +186,18 @@ export const Sidebar: React.FC = () => {
 
             {/* Footer */}
             <div className={cn("p-6 border-t border-slate-800 space-y-2", collapsed && "p-2")}>
-                <button 
-                    onClick={() => { setView('settings'); setIsOpen(false); }}
+                <Link 
+                    to="/settings"
+                    onClick={() => setIsOpen(false)}
                     className={cn(
                         "w-full flex items-center gap-4 px-4 py-2.5 text-sm font-semibold text-slate-400 hover:text-slate-200 hover:bg-slate-800 rounded-xl transition-all",
+                        location.pathname === '/settings' ? "bg-indigo-600/10 text-indigo-400" : "",
                         collapsed && "justify-center px-0"
                     )}
                 >
-                    <Icon name="settings" className="w-5 h-5" />
+                    <Icon name="settings" className={cn("w-5 h-5", location.pathname === '/settings' ? "text-indigo-400" : "")} />
                     {!collapsed && "Settings"}
-                </button>
+                </Link>
                 <button 
                     onClick={logout}
                     className={cn(

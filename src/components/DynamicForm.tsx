@@ -1,5 +1,6 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useCRMStore, Product } from '../store/useStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils/cn';
@@ -19,7 +20,9 @@ import { RepeaterField } from './input-type/RepeaterField';
 import { VariationField } from './input-type/VariationField';
 
 export const DynamicForm: React.FC = () => {
-    const { editingProduct, setView, addProduct, updateProduct, setNotification, notification, schema } = useCRMStore();
+    const { id } = useParams<{ id: string }>();
+    const navigate = useNavigate();
+    const { editingProduct, addProduct, updateProduct, setNotification, notification, schema, fetchProductById } = useCRMStore();
     
     const [formData, setFormData] = useState<Partial<Product>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -33,11 +36,15 @@ export const DynamicForm: React.FC = () => {
         const loadData = async () => {
             if (!schema) return;
             setIsLoading(true);
-            // Simulate AJAX load
-            await new Promise(resolve => setTimeout(resolve, 1200));
             
-            if (editingProduct) {
-                setFormData(editingProduct);
+            if (id) {
+                // Fetch from server
+                const product = await fetchProductById(id);
+                if (product) {
+                    setFormData(product);
+                } else {
+                    navigate('/products');
+                }
             } else {
                 const defaults: any = {};
                 formConfig.forEach((section: any) => {
@@ -53,7 +60,7 @@ export const DynamicForm: React.FC = () => {
             setIsLoading(false);
         };
         loadData();
-    }, [editingProduct, schema]);
+    }, [id, schema, fetchProductById, navigate]);
 
     if (!schema) {
         return <FormSkeleton />;
@@ -138,7 +145,7 @@ export const DynamicForm: React.FC = () => {
             }
 
             setNotification({ message: 'Data submitted successfully to dummy URL!', type: 'success' });
-            setTimeout(() => setView('list'), 1500);
+            setTimeout(() => navigate('/products'), 1500);
         } catch (error) {
             setNotification({ message: 'Error submitting data. Please try again.', type: 'error' });
         } finally {
@@ -292,23 +299,23 @@ export const DynamicForm: React.FC = () => {
             <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-4 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <button 
-                        onClick={() => setView('list')}
+                        onClick={() => navigate('/products')}
                         className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600"
                     >
                         <Icon name="arrow-left" className="w-5 h-5" />
                     </button>
                     <div>
                         <h1 className="text-xl sm:text-2xl font-bold tracking-tight text-slate-900">
-                            {editingProduct ? 'Edit' : 'Create'} {schema.table["auroparts-product"].label.singular}
+                            {id ? 'Edit' : 'Create'} {schema.table["auroparts-product"].label.singular}
                         </h1>
                         <p className="text-xs text-slate-500 font-medium uppercase tracking-wider mt-0.5">
-                            {editingProduct ? `ID: ${editingProduct.id}` : 'New Entry'}
+                            {id ? `ID: ${id}` : 'New Entry'}
                         </p>
                     </div>
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <button 
-                        onClick={() => setView('list')}
+                        onClick={() => navigate('/products')}
                         className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
                     >
                         Cancel

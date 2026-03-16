@@ -1,5 +1,6 @@
 
 import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useCRMStore, Product } from '../store/useStore';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from '../utils/cn';
@@ -8,6 +9,7 @@ import { TableSkeleton } from './Skeleton';
 import { ConfirmationModal } from './ConfirmationModal';
 
 export const DataTable: React.FC = () => {
+    const navigate = useNavigate();
     const { 
         products, 
         isLoading,
@@ -23,7 +25,6 @@ export const DataTable: React.FC = () => {
         setItemsPerPage, 
         setSearchQuery,
         setFilters,
-        setView,
         deleteProduct,
         bulkDeleteProducts,
         selectedProductIds,
@@ -100,7 +101,7 @@ export const DataTable: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                         <button 
-                            onClick={() => setView('add')}
+                            onClick={() => navigate('/products/add')}
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all active:scale-[0.98] text-sm font-semibold w-full sm:w-auto"
                         >
                             <Icon name="plus" className="w-4 h-4" />
@@ -246,7 +247,7 @@ export const DataTable: React.FC = () => {
                                             </td>
                                             {cols.map((col: any) => (
                                                 <td key={col.name} className="px-6 py-4 text-sm text-slate-600">
-                                                    {renderCell(col, product, setView, handleDelete)}
+                                                    {renderCell(col, product, navigate, handleDelete)}
                                                 </td>
                                             ))}
                                         </motion.tr>
@@ -341,7 +342,7 @@ export const DataTable: React.FC = () => {
     );
 };
 
-function renderCell(col: any, product: Product, setView: any, handleDelete: any) {
+function renderCell(col: any, product: Product, navigate: any, handleDelete: any) {
     const value = product[col.col as keyof Product];
 
     if (col.type === 'image') {
@@ -361,7 +362,7 @@ function renderCell(col: any, product: Product, setView: any, handleDelete: any)
         return (
             <div className="flex items-center gap-2">
                 <button 
-                    onClick={() => setView('edit', product)}
+                    onClick={() => navigate(`/products/edit/${product.id}`)}
                     className="p-2 rounded-md hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
                     title="Edit"
                 >

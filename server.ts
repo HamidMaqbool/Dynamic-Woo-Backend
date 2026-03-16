@@ -74,6 +74,18 @@ async function startServer() {
     });
   });
 
+  app.get("/api/products/:id", (req, res) => {
+    const { id } = req.params;
+    const allProducts = JSON.parse(fs.readFileSync(path.join(process.cwd(), "server/data/products.json"), "utf-8"));
+    const product = allProducts.find((p: any) => p.id === id);
+    
+    if (product) {
+      res.json(product);
+    } else {
+      res.status(404).json({ message: "Product not found" });
+    }
+  });
+
   app.get("/api/dashboard", (req, res) => {
     const data = JSON.parse(fs.readFileSync(path.join(process.cwd(), "server/data/dashboard.json"), "utf-8"));
     res.json(data);

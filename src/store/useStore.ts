@@ -47,7 +47,6 @@ interface CRMState {
         parentId: string;
     };
     theme: 'light' | 'dark' | 'red' | 'green';
-    view: 'list' | 'add' | 'edit' | 'usage' | 'dashboard' | 'settings';
     editingProduct: Product | null;
     notification: { message: string, type: 'success' | 'error' } | null;
     
@@ -62,6 +61,7 @@ interface CRMState {
     fetchSettings: () => Promise<void>;
     fetchSchema: () => Promise<void>;
     fetchRoutes: () => Promise<void>;
+    fetchProductById: (id: string) => Promise<Product | null>;
     setProducts: (products: Product[]) => void;
     addProduct: (product: Product) => void;
     updateProduct: (id: string, product: Partial<Product>) => void;
@@ -73,7 +73,6 @@ interface CRMState {
     setSearchQuery: (query: string) => void;
     setFilters: (filters: Partial<CRMState['filters']>) => void;
     setTheme: (theme: CRMState['theme']) => void;
-    setView: (view: CRMState['view'], product?: Product | null) => void;
     setNotification: (notif: { message: string, type: 'success' | 'error' } | null) => void;
     login: (email: string, password: string) => Promise<boolean>;
     logout: () => void;
@@ -99,7 +98,6 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         parentId: 'all',
     },
     theme: (localStorage.getItem('crm-theme') as any) || 'light',
-    view: 'dashboard',
     editingProduct: null,
     notification: null,
     isAuthenticated: false,
@@ -182,6 +180,21 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         }
     },
 
+    fetchProductById: async (id: string) => {
+        set({ isLoading: true });
+        try {
+            const response = await fetch(`/api/products/${id}`);
+            if (!response.ok) throw new Error('Product not found');
+            const data = await response.json();
+            set({ editingProduct: data, isLoading: false });
+            return data;
+        } catch (error) {
+            console.error("Failed to fetch product", error);
+            set({ isLoading: false, notification: { message: 'Product not found', type: 'error' } });
+            return null;
+        }
+    },
+
     setProducts: (products) => set({ products }),
     addProduct: (product) => set((state) => ({ products: [product, ...state.products] })),
     updateProduct: (id, updatedFields) => set((state) => ({
@@ -238,7 +251,6 @@ export const useCRMStore = create<CRMState>((set, get) => ({
         localStorage.setItem('crm-theme', theme);
         set({ theme });
     },
-    setView: (view, product = null) => set({ view, editingProduct: product }),
     setNotification: (notification) => set({ notification }),
     
     login: async (email, password) => {
@@ -273,5 +285,5 @@ export const useCRMStore = create<CRMState>((set, get) => ({
             return false;
         }
     },
-    logout: () => set({ isAuthenticated: false, user: null, view: 'dashboard' }),
+    logout: () => set({ isAuthenticated: false, user: null }),
 }));
