@@ -1,23 +1,56 @@
 import React from 'react';
 import { Routes, Route, Navigate } from 'react-router-dom';
+import { useCRMStore } from '../store/useStore';
 import { Dashboard } from '../components/Dashboard';
 import { DataTable } from '../components/DataTable';
 import { DynamicForm } from '../components/DynamicForm';
 import { UsagePage } from '../components/UsagePage';
 import { Settings } from '../components/Settings';
 
+const viewMap: Record<string, React.ComponentType> = {
+    'dashboard': Dashboard,
+    'list': DataTable,
+    'usage': UsagePage,
+    'settings': Settings,
+};
+
 export const AppRoutes: React.FC = () => {
+    const { routes } = useCRMStore();
+
+    if (!routes) {
+        return (
+            <div className="h-full flex items-center justify-center bg-slate-50">
+                <div className="flex flex-col items-center gap-4">
+                    <div className="w-10 h-10 border-4 border-indigo-600 border-t-transparent rounded-full animate-spin" />
+                    <p className="text-slate-500 font-medium animate-pulse">Initializing routes...</p>
+                </div>
+            </div>
+        );
+    }
+
     return (
         <div className="h-full overflow-hidden">
             <Routes>
-                <Route path="/" element={<Navigate to="/dashboard" replace />} />
-                <Route path="/dashboard" element={<Dashboard />} />
-                <Route path="/products" element={<DataTable />} />
-                <Route path="/products/add" element={<DynamicForm />} />
-                <Route path="/products/edit/:id" element={<DynamicForm />} />
-                <Route path="/usage" element={<UsagePage />} />
-                <Route path="/settings" element={<Settings />} />
-                <Route path="*" element={<Navigate to="/dashboard" replace />} />
+                <Route path="/" element={<Navigate to={routes[0]?.path || "/dashboard"} replace />} />
+                
+                {routes.map((route) => {
+                    const Component = viewMap[route.view] || Dashboard;
+                    return (
+                        <React.Fragment key={route.path}>
+                            <Route path={route.path} element={<Component />} />
+                            
+                            {/* Handle sub-routes for list view (Add/Edit) */}
+                            {route.view === 'list' && (
+                                <>
+                                    <Route path={`${route.path}/add`} element={<DynamicForm />} />
+                                    <Route path={`${route.path}/edit/:id`} element={<DynamicForm />} />
+                                </>
+                            )}
+                        </React.Fragment>
+                    );
+                })}
+
+                <Route path="*" element={<Navigate to={routes[0]?.path || "/dashboard"} replace />} />
             </Routes>
         </div>
     );

@@ -24,7 +24,10 @@ import { VariationField } from './input-type/VariationField';
 export const DynamicForm: React.FC = () => {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
-    const { editingProduct, addProduct, updateProduct, setNotification, notification, schema, fetchProductById } = useCRMStore();
+    const { editingProduct, addProduct, updateProduct, setNotification, notification, schema, routes, fetchProductById } = useCRMStore();
+    
+    const listRoute = routes?.find(r => r.view === 'list');
+    const basePath = listRoute?.path || '/products';
     
     const [formData, setFormData] = useState<Partial<Product>>({});
     const [errors, setErrors] = useState<Record<string, string>>({});
@@ -36,16 +39,27 @@ export const DynamicForm: React.FC = () => {
 
     useEffect(() => {
         const loadData = async () => {
-            if (!schema) return;
+            if (!schema) {
+                console.log("DynamicForm: Schema not ready yet");
+                return;
+            }
             setIsLoading(true);
+            console.log("DynamicForm: Loading data for ID:", id);
             
             if (id) {
                 // Fetch from server
-                const product = await fetchProductById(id);
-                if (product) {
-                    setFormData(product);
-                } else {
-                    navigate('/products');
+                try {
+                    const product = await fetchProductById(id);
+                    console.log("DynamicForm: Fetched product:", product);
+                    if (product) {
+                        setFormData(product);
+                    } else {
+                        console.warn("DynamicForm: Product not found, redirecting...");
+                        navigate(basePath);
+                    }
+                } catch (err) {
+                    console.error("DynamicForm: Error fetching product:", err);
+                    navigate(basePath);
                 }
             } else {
                 const defaults: any = {};
@@ -148,7 +162,7 @@ export const DynamicForm: React.FC = () => {
                 await addProduct(newProduct);
             }
 
-            setTimeout(() => navigate('/products'), 1500);
+            setTimeout(() => navigate(basePath), 1500);
         } catch (error) {
             // Error is handled in store
         } finally {
@@ -302,7 +316,7 @@ export const DynamicForm: React.FC = () => {
             <div className="sticky top-0 z-20 bg-white/80 backdrop-blur-md border-b border-slate-200 px-4 py-4 sm:px-8 sm:py-6 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-4">
                     <button 
-                        onClick={() => navigate('/products')}
+                        onClick={() => navigate(basePath)}
                         className="p-2 rounded-full hover:bg-slate-100 transition-colors text-slate-600"
                     >
                         <Icon name="arrow-left" className="w-5 h-5" />
@@ -318,7 +332,7 @@ export const DynamicForm: React.FC = () => {
                 </div>
                 <div className="flex items-center gap-3 w-full sm:w-auto">
                     <button 
-                        onClick={() => navigate('/products')}
+                        onClick={() => navigate(basePath)}
                         className="flex-1 sm:flex-none px-4 py-2 text-sm font-semibold text-slate-600 hover:text-slate-900 transition-colors"
                     >
                         Cancel

@@ -20,19 +20,16 @@ const SidebarItem: React.FC<SidebarItemProps> = ({ item, closeMobile, isCollapse
   const hasChildren = item.children && item.children.length > 0;
 
   const isActive = (path: string) => {
-    if (path === 'dashboard' && location.pathname === '/dashboard') return true;
-    if (path === 'products' && location.pathname.startsWith('/products')) return true;
-    if (path === 'usage' && location.pathname === '/usage') return true;
-    if (path === 'settings' && location.pathname === '/settings') return true;
-    return false;
+    // If path is absolute, check if it matches
+    if (path.startsWith('/')) {
+      return location.pathname === path || location.pathname.startsWith(`${path}/`);
+    }
+    // Otherwise check if it's a sub-path
+    return location.pathname.includes(path);
   };
 
   const getRoutePath = (path: string) => {
-    if (path === 'dashboard') return '/dashboard';
-    if (path === 'products/all' || path === 'products') return '/products';
-    if (path === 'products/new' || path === 'products/add') return '/products/add';
-    if (path === 'usage') return '/usage';
-    if (path === 'settings') return '/settings';
+    if (path.startsWith('/')) return path;
     return `/${path}`;
   };
 

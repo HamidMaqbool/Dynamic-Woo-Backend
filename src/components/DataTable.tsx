@@ -14,6 +14,7 @@ export const DataTable: React.FC = () => {
         products, 
         isLoading,
         schema,
+        routes,
         fetchProducts,
         currentPage, 
         itemsPerPage, 
@@ -30,6 +31,9 @@ export const DataTable: React.FC = () => {
         selectedProductIds,
         setSelectedProductIds
     } = useCRMStore();
+
+    const listRoute = routes?.find(r => r.view === 'list');
+    const basePath = listRoute?.path || '/products';
 
     const [deleteModal, setDeleteModal] = useState<{ isOpen: boolean; id: string | null; isBulk: boolean }>({
         isOpen: false,
@@ -101,7 +105,7 @@ export const DataTable: React.FC = () => {
                     </div>
                     <div className="flex items-center gap-3 w-full sm:w-auto">
                         <button 
-                            onClick={() => navigate('/products/add')}
+                            onClick={() => navigate(`${basePath}/add`)}
                             className="flex items-center justify-center gap-2 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-sm shadow-indigo-200 transition-all active:scale-[0.98] text-sm font-semibold w-full sm:w-auto"
                         >
                             <Icon name="plus" className="w-4 h-4" />
@@ -267,7 +271,7 @@ export const DataTable: React.FC = () => {
                                             </td>
                                             {cols.map((col: any) => (
                                                 <td key={col.name} className="px-6 py-4 text-sm text-slate-600">
-                                                    {renderCell(col, product, navigate, handleDelete)}
+                                                    {renderCell(col, product, navigate, handleDelete, basePath)}
                                                 </td>
                                             ))}
                                         </motion.tr>
@@ -362,7 +366,7 @@ export const DataTable: React.FC = () => {
     );
 };
 
-function renderCell(col: any, product: Product, navigate: any, handleDelete: any) {
+function renderCell(col: any, product: Product, navigate: any, handleDelete: any, basePath: string) {
     const value = product[col.col as keyof Product];
 
     if (col.type === 'image') {
@@ -382,7 +386,7 @@ function renderCell(col: any, product: Product, navigate: any, handleDelete: any
         return (
             <div className="flex items-center gap-2">
                 <button 
-                    onClick={() => navigate(`/products/edit/${product.id}`)}
+                    onClick={() => navigate(`${basePath}/edit/${product.id}`)}
                     className="p-2 rounded-md hover:bg-indigo-50 text-slate-400 hover:text-indigo-600 transition-colors"
                     title="Edit"
                 >
